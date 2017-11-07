@@ -20,7 +20,7 @@ def main():
     listenerSSLPolicy                   = dict(type ='str',  default=''),
     passwordAuthenticationRealm         = dict(type ='bool', default=False),
     passwordParameter                   = dict(type ='str',  default=''),
-    port                                = dict(type ='int',  required=True),
+    port                                = dict(type ='int',  default=8080),
     readTimeoutMillis                   = dict(type ='int',  default=0),
     requirePasswordAuthentication       = dict(type ='bool', default=False),
     useBasicAuthentication              = dict(type ='bool', default=False),
