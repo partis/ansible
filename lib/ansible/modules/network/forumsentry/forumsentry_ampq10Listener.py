@@ -6,7 +6,7 @@ from ansible.module_utils.forumsentry import AnsibleForumSentry
 
 def main():
 
-  rest_context = '/restApi/v1.0/policies/httpListenerPolicies'
+  rest_context = '/restApi/v1.0/policies/amqp10ListenerPolicies'
 
   module_args = dict(
     name                                = dict(type ='str',  required=True),
@@ -15,25 +15,17 @@ def main():
     enabled                             = dict(type ='bool', default=True),
     errorTemplate                       = dict(type ='str',  default=''),
     ipAclPolicy                         = dict(type ='str',  default=''),
-    listenerHost                        = dict(type ='str',  default=''),
-    listenerSSLEnabled                  = dict(type ='bool', default=False),
-    listenerSSLPolicy                   = dict(type ='str',  default=''),
-    passwordAuthenticationRealm         = dict(type ='bool', default=False),
-    passwordParameter                   = dict(type ='str',  default=''),
-    port                                = dict(type ='int',  default=8080),
+    ip 		                        = dict(type ='str',  default=''),
+    useSsl                              = dict(type ='bool', default=False),
+    sslPolicy                           = dict(type ='str',  default=''),
+    #saslMechanism                       = dict(type ='str', default='', choices=['', 'NONE', 'ANONYMOUS', 'PLAIN', 'CRAM_MD5', 'EXTERNAL']),
+    port                                = dict(type ='int',  default=5672),
     readTimeoutMillis                   = dict(type ='int',  default=0),
-    requirePasswordAuthentication       = dict(type ='bool', default=False),
-    useBasicAuthentication              = dict(type ='bool', default=False),
-    useChunking                         = dict(type ='bool', default=True),
-    useCookieAuthentication             = dict(type ='bool', default=False),
     useDeviceIp                         = dict(type ='bool', default=True),
-    useDigestAuthentication             = dict(type ='bool', default=False),
-    useFormPostAuthentication           = dict(type ='bool', default=False),
-    useKerberosAuthentication           = dict(type ='bool', default=False),
-    usernameParameter                   = dict(type ='str',  default='')
+    #interface                           = dict(type ='str',  default='', choices=['', 'WAN', 'LAN'])
   )
 
-  # merge argument_spec from module_utils/fortios.py
+  # merge argument_spec from module_utils/forumsentry.py
   module_args.update(forum_sentry_argument_spec)
 
   module = AnsibleModule(
@@ -54,9 +46,9 @@ def main():
       module.fail_json(msg='Attribute `port` must be defined when state=absent')
 
   # SSL Termination Policy must be defined if Listener is HTTPS
-  if module.params['listenerSSLEnabled'] == True:
-    if module.params['listenerSSLPolicy'] is None:
-      module.fail_json(msg='Attribute `listenerSSLPolicy` must be defined when listenerSSLEnabled=true')
+  if module.params['useSsl'] == True:
+    if module.params['sslPolicy'] is None:
+      module.fail_json(msg='Attribute `sslPolicy` must be defined when useSsl=true')
 
   forum.apply()
 
