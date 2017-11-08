@@ -15,14 +15,14 @@ def main():
     enabled                             = dict(type ='bool', default=True),
     errorTemplate                       = dict(type ='str',  default=''),
     ipAclPolicy                         = dict(type ='str',  default=''),
-    ip 		                        = dict(type ='str',  default=''),
+    ip 		                        = dict(type ='str',  required=True),
     useSsl                              = dict(type ='bool', default=False),
     sslPolicy                           = dict(type ='str',  default=''),
-    #saslMechanism                       = dict(type ='str', default='', choices=['', 'NONE', 'ANONYMOUS', 'PLAIN', 'CRAM_MD5', 'EXTERNAL']),
+    saslMechanism                       = dict(type ='str', default='NONE', choices=['NONE', 'ANONYMOUS', 'PLAIN', 'CRAM_MD5', 'EXTERNAL']),
     port                                = dict(type ='int',  default=5672),
     readTimeoutMillis                   = dict(type ='int',  default=0),
     useDeviceIp                         = dict(type ='bool', default=True),
-    #interface                           = dict(type ='str',  default='', choices=['', 'WAN', 'LAN'])
+    interface                           = dict(type ='str',  default='WAN', choices=['WAN', 'LAN'])
   )
 
   # merge argument_spec from module_utils/forumsentry.py
