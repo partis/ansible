@@ -12,7 +12,8 @@ forum_sentry_argument_spec = dict(
   sentryUsername	= dict( type ='str',  required=True ),
   sentryPassword	= dict( type ='str',  required=True ),
   state			= dict( type ='str',  default='present', choices=['present', 'absent'] ),
-  type			= dict( type ='str' )
+  type			= dict( type ='str' ),
+  parent		= dict( type ='str' )
 )
 
 class AnsibleForumSentry( object ):
