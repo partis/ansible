@@ -33,15 +33,17 @@ def main():
     usernameParameter                   = dict(type ='str',  default='')
   )
 
+  update_skip_list = []
+
   # merge argument_spec from module_utils/fortios.py
   module_args.update(forum_sentry_argument_spec)
 
   module = AnsibleModule(
     argument_spec=module_args,
-    supports_check_mode=True
+    supports_check_mode=True,
   )
 
-  forum = AnsibleForumSentry(module, rest_context)
+  forum = AnsibleForumSentry(module, rest_context, update_skip_list)
 
   result = dict(changed=False)
 
@@ -58,7 +60,7 @@ def main():
     if module.params['listenerSSLPolicy'] is None:
       module.fail_json(msg='Attribute `listenerSSLPolicy` must be defined when listenerSSLEnabled=true')
 
-  forum.apply()
+  forum.applyPolicy()
 
 if __name__ == '__main__':
   main()

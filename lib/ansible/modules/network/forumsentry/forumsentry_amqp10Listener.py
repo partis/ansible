@@ -25,6 +25,8 @@ def main():
     interface                           = dict(type ='str',  default='WAN', choices=['WAN', 'LAN'])
   )
 
+  update_skip_list = []
+
   # merge argument_spec from module_utils/forumsentry.py
   module_args.update(forum_sentry_argument_spec)
 
@@ -33,7 +35,7 @@ def main():
     supports_check_mode=True
   )
 
-  forum = AnsibleForumSentry(module, rest_context)
+  forum = AnsibleForumSentry(module, rest_context, update_skip_list)
 
   result = dict(changed=False)
 
@@ -50,7 +52,7 @@ def main():
     if module.params['sslPolicy'] is None:
       module.fail_json(msg='Attribute `sslPolicy` must be defined when useSsl=true')
 
-  forum.apply()
+  forum.applyPolicy()
 
 if __name__ == '__main__':
   main()
