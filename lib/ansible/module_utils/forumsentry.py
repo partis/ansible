@@ -13,8 +13,12 @@ forum_sentry_argument_spec = dict(
   sentryPassword	= dict( type ='str',  required=True ),
   state			= dict( type ='str',  default='present', choices=['present', 'absent'] ),
   type			= dict( type ='str' ),
+  # needed to find the content policy of a virtual directory
   parent		= dict( type ='str' )
 )
+
+# a list of policies that don't support updates
+no_update=['sslInitiationPolicies', 'sslTerminationPolicies']
 
 class AnsibleForumSentry( object ):
 
@@ -53,24 +57,32 @@ class AnsibleForumSentry( object ):
 
 
   def updatePolicy( self , policy ):
-    jsonMessage=json.loads(policy)
+    # if the policy we are working on doesn't support updates then skip this bit, bit of a hack due to dodgy api
+    update=True
+    for policy_type in no_update:
+      if policy_type in self.path:
+        update=False
 
-    for key in self.module.argument_spec:
-      if key not in forum_sentry_argument_spec:
-        jsonMessage[key] = self.module.params[key]
+    if update:
+      # load the results of the policy check into the json message
+      jsonMessage=json.loads(policy)
 
-    for skip in self.update_skip_list:
-      del jsonMessage[skip]
+      for key in self.module.argument_spec:
+        if key not in forum_sentry_argument_spec:
+          jsonMessage[key] = self.module.params[key]
+      # policy specific skip list or parameters that aren't supported in updates, bit of a hack due to dodgy api
+      for skip in self.update_skip_list:
+        del jsonMessage[skip]
 
-    message = json.dumps( jsonMessage )
+      message = json.dumps( jsonMessage )
 
-    httpHeaders = { 'Content-Type': 'application/json' }
-    httpPut = requests.put( self.__url + '/' + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True , data=message , headers=httpHeaders )
+      httpHeaders = { 'Content-Type': 'application/json' }
+      httpPut = requests.put( self.__url + '/' + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True , data=message , headers=httpHeaders )
 
-    if ( httpPut.status_code == 200 ):
-      self.result['changed'] = True
-    else:
-      self.module.fail_json( msg='Failed to update policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPut.status_code ) ) 
+      if ( httpPut.status_code == 200 ):
+        self.result['changed'] = True
+      else:
+        self.module.fail_json( msg='Failed to update policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPut.status_code ) ) 
 
 
   def checkPolicy( self , name ):
