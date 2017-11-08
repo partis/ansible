@@ -49,8 +49,8 @@ class AnsibleForumSentry( object ):
       self.module.fail_json( msg='Failed to create policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPost.status_code ) )
 
 
-  def updatePolicy( self ):
-    jsonMessage={}
+  def updatePolicy( self , policy ):
+    jsonMessage=json.loads(policy)
 
     for key in self.module.argument_spec:
       if key not in forum_sentry_argument_spec:
@@ -70,7 +70,7 @@ class AnsibleForumSentry( object ):
   def checkPolicy( self , name ):
     if name:
       httpGet = requests.get( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
-      return httpGet.status_code
+      return httpGet
     else:
       self.module.fail_json( msg='Failed to check policy. `name` is undefined' )
 
@@ -79,12 +79,12 @@ class AnsibleForumSentry( object ):
 
     policy = self.checkPolicy( self.module.params['name'] )
 
-    if policy == 200:
+    if policy.status_code == 200:
       if self.module.params['state'] == 'present':
-        self.updatePolicy()
+        self.updatePolicy( policy.content )
       else:
         self.deletePolicy()
-    elif policy == 404:
+    elif policy.status_code == 404:
       if self.module.params['state'] == 'present':
         self.createPolicy()
     else:
