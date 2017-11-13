@@ -6,142 +6,97 @@ import requests
 import json
 
 forum_sentry_argument_spec = dict(
-  sentryProtocol	= dict( type ='str',  default='http', choices=['http', 'https'] ),
-  sentryHost		= dict( type ='str',  required=True ),
-  sentryPort		= dict( type ='int',  default=80 ),
-  sentryUsername	= dict( type ='str',  required=True ),
-  sentryPassword	= dict( type ='str',  required=True ),
-  state			= dict( type ='str',  default='present', choices=['present', 'absent'] ),
-  type			= dict( type ='str' )
+  sentryProtocol        = dict( type ='str', default='http', choices=['http', 'https'] ),
+  sentryHost            = dict( type ='str' ),
+  sentryPort            = dict( type ='int' ),
+  sentryUsername        = dict( type ='str' ),
+  sentryPassword        = dict( type ='str' ),
+  state                 = dict( type ='str',  default='present', choices=['present', 'absent'] )
 )
+
+forum_sentry_required_together = [
+  [ 'sentryHost' , 'sentryPort' , 'sentryUsername' , 'sentryPassword' ]
+]
 
 class AnsibleForumSentry( object ):
 
- 
-  def __init__( self , module , path ):
+
+  def __init__( self , module ):
     self.module = module
-    self.result = { 'changed': False }
-    self.path = path
+    self.result = { 'changed' : False }
+    self.__url = self.module.params['sentryProtocol'] + "://" + self.module.params['sentryHost'] + ":" + str( self.module.params['sentryPort'] )
+    self.__auth = auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] )
 
-    self.__url = self.module.params['sentryProtocol'] + "://" + self.module.params['sentryHost'] + ":" + str( self.module.params['sentryPort'] ) + self.path
 
+  def createSentryObject( self , service , data , files={} , isJson=False):    
 
-  def deletePolicy( self ):
-    httpDelete = requests.delete( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
+    if files:
+      httpPost = requests.post( self.__url + service , auth=self.__auth , files=files, data=data, verify=True )
+    else:
+      if isJson:
+        httpPost = requests.post( self.__url + service , auth=self.__auth , data=data, verify=True , headers={ 'Content-Type': 'application/json' } )
+      else:
+        httpPost = requests.post( self.__url + service , auth=self.__auth , data=data, verify=True )
+
+    if ( httpPost.status_code == 202 ):
+      self.result['changed'] = True
+    elif ( httpPost.status_code == 409 ):
+      self.result['changed'] = False
+    else:
+      self.module.fail_json( msg='Unable to import ' + service.rsplit('/', 1)[-1] + ': ' + str( httpPost.status_code ) + ' - ' + httpPost.text )
+
+  
+  def deleteSentryObject( self , service , name ):
+  
+    httpDelete = requests.delete( self.__url + service + '/' + name , auth=self.__auth , verify=True )
+
     if ( httpDelete.status_code == 200 ):
       self.result['changed'] = True
+    elif ( httpDelete.status_code == 404 ):
+      self.result['changed'] = False
     else:
-      self.module.fail_json( msg='Failed to delete policy `' + name + '`. Forum Sentry returned HTTP Status Code ' + str( httpDelete.status_code ) )
+      self.module.fail_json( msg='Unable to delete ' + service.rsplit('/', 1)[-1] + ': ' + str( httpDelete.status_code ) + ' - ' + httpDelete.text )
+    
+
+  def getSentryObject( self , service , name ):
+    
+    httpGet = requests.get( self.__url + service , auth=self.__auth , verify=True )
+
+    if ( httpGet.status_code == 200 ):
+      items = json.loads( httpGet.text )
+      itemsList = []
+
+      for item in items['policy']:
+        if name in item['name']:
+          itemsList.append( item['name'] )
+
+      return itemsList
+    else:
+      self.module.fail_json( msg='Unable to get ' + service.rsplit('/', 1)[-1] + ': ' + str( httpGet.status_code ) + ' - ' + httpGet.text )
 
 
-  def createPolicy( self ):
-    jsonMessage={}
+  def importSentryObject( self , service , keys='' ):
+            
+    formValues = {}
+
     for key in self.module.argument_spec:
-      if key not in forum_sentry_argument_spec:
-        jsonMessage[key] = self.module.params[key]
-        message = json.dumps( jsonMessage )
-
-    httpHeaders = { 'Content-Type': 'application/json' }
-    httpPost = requests.post( self.__url , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ), verify=True , data=message , headers=httpHeaders )
-
-    if ( httpPost.status_code == 201 ):
-      self.result['changed'] = True
-    else:
-      self.module.fail_json( msg='Failed to create policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPost.status_code ) )
-
-
-  def updatePolicy( self ):
-    jsonMessage={}
-
-    for key in self.module.argument_spec:
-      if key not in forum_sentry_argument_spec:
-        jsonMessage[key] = self.module.params[key]
-
-    message = json.dumps( jsonMessage )
-
-    httpHeaders = { 'Content-Type': 'application/json' }
-    httpPut = requests.put( self.__url + '/' + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True , data=message , headers=httpHeaders )
-
-    if ( httpPut.status_code == 200 ):
-      self.result['changed'] = True
-    else:
-      self.module.fail_json( msg='Failed to update policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPut.status_code ) ) 
-
-
-  def checkPolicy( self , name ):
-    if name:
-      httpGet = requests.get( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
-      return httpGet.status_code
-    else:
-      self.module.fail_json( msg='Failed to check policy. `name` is undefined' )
-
-
-  def uploadObject( self ):
-
-    # Because each API in Forum uses a different key to denote a file, we need to record these to make it
-    # abstract ( or as much as we can, anyway ).
-    fileProperties = { 'keyAndCertificateFile', 'keyFile', 'keyStoreFile', 'certificateFile', 'file' }
-
-    # Dictionary for our Form Values for our Multi-Part Form
-    formValues={}    
-
-    # Build a dictionary containing all of the form values from the input arguments in Ansible.
-    for key in self.module.argument_spec:
-      if ( key not in forum_sentry_argument_spec ) and ( key not in fileProperties ):
+      if ( key not in forum_sentry_argument_spec ) and ( key not in keys ):
         formValues[key] = self.module.params[key]
+      
+    if keys:
 
-    # We need to determine what kind of KeyPair Policy we're creating. Then we need to extract the correct
-    # Key token to send in the files object in the MultiPart post.
-    for attr in fileProperties:
-      if attr in self.module.argument_spec:
-        fileKey = attr
+      file = ''
+      fileValues = {}      
 
-    # We've found the key, let's get the file and read it in so we can send it as part of the MultiPart
-    # post.
-    file = open(self.module.params[fileKey], 'rb')
+      # Some nasty ass code up in here... fix it!
+      for key in keys.split(','):
+        file = open( self.module.params[key] , 'rb' )
+        fileValues[key] = file
+      
+      try:
+        self.createSentryObject( service , formValues , fileValues )
+      finally:
+        file.close()
 
-    # Dictionary for our File Values for our Multi-Part Form
-    fileValues={ fileKey : file }
-
-    # Now we have everything we need, we can post to Forum Sentry
-    try:
-        httpPost = requests.post( self.__url + '/import/' + self.module.params['type'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ), files=fileValues, data=formValues, verify=True )
-        return httpPost.status_code
-    finally:
-      file.close()
-
-  def applyObject(self):
-    if self.module.params['state'] == 'present':
-      upload = self.uploadObject()
-      if ( upload == 202 ):
-        self.result['changed'] = True
-      elif ( upload == 409 ):
-        self.result['changed'] = False
-      else:
-        self.module.fail_json( msg='Failed to upload object. Forum Sentry returned error: ' + str( httpPost.status_code ) )
     else:
-      # Check if there is an associated Signer Group
-      # Some Rank Code right here, messy AF ='(
-      httpDelete = requests.delete( self.module.params['sentryProtocol'] + "://" + self.module.params['sentryHost'] + ":" + str( self.module.params['sentryPort'] ) + "/restApi/v1.0/policies/signerGroups/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
-      delete = self.deletePolicy()
-      if ( delete == 200 ):
-        self.result['changed'] = True
-
-    self.module.exit_json(**self.result)
-
-  def applyPolicy(self):
-
-    policy = self.checkPolicy( self.module.params['name'] )
-
-    if policy == 200:
-      if self.module.params['state'] == 'present':
-        self.updatePolicy()
-      else:
-        self.deletePolicy()
-    elif policy == 404:
-      if self.module.params['state'] == 'present':
-        self.createPolicy()
-    else:
-      self.module.fail_json( msg='AnsibleForumSentry module failed. Forum Sentry returned HTTP Status Code ' + str( policy ) )
-
-    self.module.exit_json(**self.result)
+      self.createSentryObject( service , formValues )
