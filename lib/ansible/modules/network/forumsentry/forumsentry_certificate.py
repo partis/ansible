@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.forumsentry import forum_sentry_argument_spec
@@ -6,17 +6,17 @@ from ansible.module_utils.forumsentry import AnsibleForumSentry
 
 def main():
 
-  rest_context = '/restApi/v1.0/policies/ipACLs'
+  rest_context = '/restApi/v1.0/policies/certificates'
 
   module_args = dict(
-    name                                = dict(type ='str',  required=True),
-    ipRanges                            = dict(type ='str',  default=''),
-    ipRangeMeansDeny                    = dict(type ='bool', default=False),
+    id			= dict( type ='str',  	required=True ),
+    name        = dict( type='str',     default=id),
+    state		= dict( type ='str',    default='absent', choices=['absent'] )
   )
 
   update_skip_list = []
 
-  # merge argument_spec from module_utils/forumsentry.py
+  # merge argument_spec from module_utils/fortios.py
   module_args.update(forum_sentry_argument_spec)
 
   module = AnsibleModule(

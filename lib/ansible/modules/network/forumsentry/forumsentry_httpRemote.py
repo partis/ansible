@@ -21,8 +21,7 @@ def main():
     remoteServer                        = dict(type ='str',  required=True),
     tcpReadTimeout                      = dict(type ='int',  default=0),
     tcpConnectionTimeout                = dict(type ='int',  default=0),
-    useBasicAuth                        = dict(type ='bool', default=False),
-    
+    useBasicAuth                        = dict(type ='bool', default=False)
   )
 
   update_skip_list = []

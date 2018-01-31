@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 
 from ansible.module_utils.basic import AnsibleModule
 
@@ -22,7 +22,7 @@ no_update=['sslInitiationPolicies', 'sslTerminationPolicies']
 
 class AnsibleForumSentry( object ):
 
- 
+
   def __init__( self , module , path , update_skip_list ):
     self.module = module
     self.result = { 'changed': False }
@@ -33,11 +33,13 @@ class AnsibleForumSentry( object ):
 
 
   def deletePolicy( self ):
-    httpDelete = requests.delete( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
+    httpDelete = requests.delete( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=False )
     if ( httpDelete.status_code == 200 ):
       self.result['changed'] = True
+    elif (httpDelete.status_code == 404 ):
+      self.result['changed'] = False
     else:
-      self.module.fail_json( msg='Failed to delete policy `' + name + '`. Forum Sentry returned HTTP Status Code ' + str( httpDelete.status_code ) )
+      self.module.fail_json( msg='Failed to delete policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpDelete.status_code ) )
 
 
   def createPolicy( self ):
@@ -48,7 +50,7 @@ class AnsibleForumSentry( object ):
         message = json.dumps( jsonMessage )
 
     httpHeaders = { 'Content-Type': 'application/json' }
-    httpPost = requests.post( self.__url , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ), verify=True , data=message , headers=httpHeaders )
+    httpPost = requests.post( self.__url , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ), verify=False , data=message , headers=httpHeaders )
 
     if ( httpPost.status_code == 201 ):
       self.result['changed'] = True
@@ -77,17 +79,17 @@ class AnsibleForumSentry( object ):
       message = json.dumps( jsonMessage )
 
       httpHeaders = { 'Content-Type': 'application/json' }
-      httpPut = requests.put( self.__url + '/' + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True , data=message , headers=httpHeaders )
+      httpPut = requests.put( self.__url + '/' + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=False , data=message , headers=httpHeaders )
 
       if ( httpPut.status_code == 200 ):
         self.result['changed'] = True
       else:
-        self.module.fail_json( msg='Failed to update policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPut.status_code ) ) 
+        self.module.fail_json( msg='Failed to update policy `' + self.module.params['name'] + '`. Forum Sentry returned HTTP Status Code ' + str( httpPut.status_code ) )
 
 
   def checkPolicy( self , name ):
     if name:
-      httpGet = requests.get( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
+      httpGet = requests.get( self.__url + "/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=False )
       return httpGet
     else:
       self.module.fail_json( msg='Failed to check policy. `name` is undefined' )
@@ -97,10 +99,10 @@ class AnsibleForumSentry( object ):
 
     # Because each API in Forum uses a different key to denote a file, we need to record these to make it
     # abstract ( or as much as we can, anyway ).
-    fileProperties = { 'keyAndCertificateFile', 'keyFile', 'keyStoreFile', 'certificateFile', 'file' }
+    fileProperties = [ 'keyAndCertificateFile', 'keyFile', 'keyStoreFile', 'certificateFile', 'file' ]
 
     # Dictionary for our Form Values for our Multi-Part Form
-    formValues={}    
+    formValues={}
 
     # Build a dictionary containing all of the form values from the input arguments in Ansible.
     for key in self.module.argument_spec:
@@ -122,7 +124,7 @@ class AnsibleForumSentry( object ):
 
     # Now we have everything we need, we can post to Forum Sentry
     try:
-        httpPost = requests.post( self.__url + '/import/' + self.module.params['type'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ), files=fileValues, data=formValues, verify=True )
+        httpPost = requests.post( self.__url + '/import/' + self.module.params['type'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ), files=fileValues, data=formValues, verify=False )
         return httpPost.status_code
     finally:
       file.close()
@@ -135,11 +137,11 @@ class AnsibleForumSentry( object ):
       elif ( upload == 409 ):
         self.result['changed'] = False
       else:
-        self.module.fail_json( msg='Failed to upload object. Forum Sentry returned error: ' + str( httpPost.status_code ) )
+        self.module.fail_json( msg='Failed to upload object. Forum Sentry returned error: ' + str( upload ) )
     else:
       # Check if there is an associated Signer Group
       # Some Rank Code right here, messy AF ='(
-      httpDelete = requests.delete( self.module.params['sentryProtocol'] + "://" + self.module.params['sentryHost'] + ":" + str( self.module.params['sentryPort'] ) + "/restApi/v1.0/policies/signerGroups/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=True )
+      httpDelete = requests.delete( self.module.params['sentryProtocol'] + "://" + self.module.params['sentryHost'] + ":" + str( self.module.params['sentryPort'] ) + "/restApi/v1.0/policies/signerGroups/" + self.module.params['name'] , auth=( self.module.params['sentryUsername'] , self.module.params['sentryPassword'] ) , verify=False )
       delete = self.deletePolicy()
       if ( delete == 200 ):
         self.result['changed'] = True
@@ -150,10 +152,12 @@ class AnsibleForumSentry( object ):
 
     policy = self.checkPolicy( self.module.params['name'] )
 
-    if policy.status_code == 200:
+    if (policy.status_code == 200) or (policy.status_code == 409):
       if self.module.params['state'] == 'present':
         self.updatePolicy(policy.content)
       else:
+        self.deletePolicy()
+    elif (policy.status_code == 405) and (self.module.params['state'] == 'absent'):
         self.deletePolicy()
     elif policy.status_code == 404:
       if self.module.params['state'] == 'present':

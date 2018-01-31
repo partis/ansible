@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.forumsentry import forum_sentry_argument_spec

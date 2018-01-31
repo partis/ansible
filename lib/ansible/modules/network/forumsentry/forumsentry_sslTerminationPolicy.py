@@ -15,7 +15,7 @@ def main():
     associateDnToUser                   = dict(type ='bool',  default=False),
     aclPolicy                           = dict(type ='str',  default=''),
     useUserAttrOnly                     = dict(type ='bool',  default=False),
-    authenticateClient                  = dict(type ='str',  default=''),
+    authenticateClient                  = dict(type ='bool',  default=False),
   )
 
   # merge argument_spec from module_utils/forumsentry.py
